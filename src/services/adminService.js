@@ -1,0 +1,268 @@
+import { getDb, saveDb, delay, nextId } from '../mocks/db'
+import { ApiError } from '../utils/errors'
+import { apiConfig, request } from './apiClient'
+
+function clone(v) {
+  return JSON.parse(JSON.stringify(v))
+}
+
+export const adminService = {
+  async overview() {
+    if (!apiConfig.useMock) return request('/admin/overview')
+    await delay()
+    const db = getDb()
+    const today = new Date().toISOString().slice(0, 10)
+    return {
+      totalUsers: db.users.length,
+      activeLandlords: db.users.filter((u) => u.role === 'landlord' && u.status === 'active').length,
+      activeProperties: db.properties.filter((p) => p.status === 'active').length,
+      pendingApprovals: db.properties.filter((p) => p.status === 'pending').length,
+      todayRevenue: db.payments
+        .filter((p) => p.status === 'Success' && p.createdAt.startsWith(today))
+        .reduce((s, p) => s + p.amount, 0),
+      totalCoinSales: db.transactions.filter((t) => t.type === 'Purchase' && t.status === 'Success').reduce((s, t) => s + t.coins, 0),
+      openReports: db.reports.filter((r) => r.status === 'open').length,
+      series: db.analyticsSeries,
+      recentActivity: db.adminLogs.slice(0, 6),
+      pending: db.properties.filter((p) => p.status === 'pending'),
+      reports: db.reports.slice(0, 5),
+    }
+  },
+
+  async users({ role, status, q } = {}) {
+    if (!apiConfig.useMock) return request('/admin/users')
+    await delay()
+    let list = getDb().users.filter((u) => u.role !== 'admin' || role === 'admin')
+    if (role) list = list.filter((u) => u.role === role)
+    if (status) list = list.filter((u) => u.status === status)
+    if (q) {
+      const s = q.toLowerCase()
+      list = list.filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(s))
+    }
+    return clone(list)
+  },
+
+  async user(id) {
+    await delay()
+    const db = getDb()
+    const user = db.users.find((u) => u.id === id)
+    if (!user) throw new ApiError(404, 'User not found')
+    return {
+      user: clone(user),
+      properties: clone(db.properties.filter((p) => p.landlordId === id)),
+      transactions: clone(db.transactions.filter((t) => t.userId === id)),
+    }
+  },
+
+  async setUserStatus(id, status) {
+    await delay()
+    const db = getDb()
+    const user = db.users.find((u) => u.id === id)
+    if (!user) throw new ApiError(404, 'User not found')
+    user.status = status
+    saveDb(db)
+    return clone(user)
+  },
+
+  async updateUser(id, payload) {
+    await delay()
+    const db = getDb()
+    const user = db.users.find((u) => u.id === id)
+    if (!user) throw new ApiError(404, 'User not found')
+    Object.assign(user, payload)
+    saveDb(db)
+    return clone(user)
+  },
+
+  async deleteUser(id) {
+    await delay()
+    const db = getDb()
+    db.users = db.users.filter((u) => u.id !== id)
+    saveDb(db)
+    return { ok: true }
+  },
+
+  async properties({ status, q } = {}) {
+    await delay()
+    let list = getDb().properties
+    if (status) list = list.filter((p) => p.status === status)
+    if (q) list = list.filter((p) => p.title.toLowerCase().includes(q.toLowerCase()))
+    return clone(list)
+  },
+
+  async approve(id, adminId) {
+    await delay()
+    const db = getDb()
+    const p = db.properties.find((x) => x.id === id)
+    if (!p) throw new ApiError(404, 'Not found')
+    p.status = 'active'
+    p.verified = true
+    delete p.rejectionReason
+    log(db, adminId, 'Approved listing', id)
+    saveDb(db)
+    return clone(p)
+  },
+
+  async reject(id, adminId, reason) {
+    await delay()
+    if (!reason) throw new ApiError(422, 'A rejection reason is required')
+    const db = getDb()
+    const p = db.properties.find((x) => x.id === id)
+    if (!p) throw new ApiError(404, 'Not found')
+    p.status = 'rejected'
+    p.rejectionReason = reason
+    log(db, adminId, 'Rejected listing', id)
+    saveDb(db)
+    return clone(p)
+  },
+
+  async suspendProperty(id, adminId) {
+    await delay()
+    const db = getDb()
+    const p = db.properties.find((x) => x.id === id)
+    if (!p) throw new ApiError(404, 'Not found')
+    p.status = 'suspended'
+    log(db, adminId, 'Suspended listing', id)
+    saveDb(db)
+    return clone(p)
+  },
+
+  async reports() {
+    await delay()
+    return clone(getDb().reports)
+  },
+
+  async updateReport(id, adminId, action, extra = {}) {
+    await delay()
+    const db = getDb()
+    const r = db.reports.find((x) => x.id === id)
+    if (!r) throw new ApiError(404, 'Not found')
+    if (action === 'dismiss') r.status = 'dismissed'
+    if (action === 'investigate') r.status = 'investigating'
+    if (action === 'suspend-listing' && r.targetType === 'property') {
+      const p = db.properties.find((x) => x.id === r.targetId)
+      if (p) p.status = 'suspended'
+      r.status = 'resolved'
+    }
+    if (action === 'suspend-user' || action === 'block-user') {
+      const uid = extra.userId || r.relatedUserId || r.reporterId
+      const user = db.users.find((u) => u.id === uid)
+      if (user) user.status = action === 'block-user' ? 'blocked' : 'suspended'
+      r.status = 'resolved'
+    }
+    r.history.push({ action, by: adminId, at: new Date().toISOString() })
+    log(db, adminId, `Report ${action}`, id)
+    saveDb(db)
+    return clone(r)
+  },
+
+  async payments() {
+    await delay()
+    return clone(getDb().payments)
+  },
+
+  async refund(paymentId, adminId) {
+    await delay()
+    const db = getDb()
+    const payment = db.payments.find((p) => p.id === paymentId)
+    if (!payment) throw new ApiError(404, 'Not found')
+    payment.status = 'Refunded'
+    const packCoins = payment.coins || 0
+    if (db.wallets[payment.userId]) {
+      db.wallets[payment.userId].coinBalance = Math.max(0, db.wallets[payment.userId].coinBalance - packCoins)
+    }
+    db.transactions.unshift({
+      id: nextId('t'),
+      userId: payment.userId,
+      type: 'Refund',
+      coins: -packCoins,
+      amount: payment.amount,
+      paymentMethod: payment.method,
+      status: 'Refunded',
+      description: `Refund for payment ${payment.id}`,
+      createdAt: new Date().toISOString(),
+    })
+    log(db, adminId, 'Refunded payment', paymentId)
+    saveDb(db)
+    return clone(payment)
+  },
+
+  async coinTransactions() {
+    await delay()
+    return clone(getDb().transactions)
+  },
+
+  async analytics() {
+    await delay()
+    const db = getDb()
+    return {
+      users: db.users.length,
+      landlords: db.users.filter((u) => u.role === 'landlord').length,
+      tenants: db.users.filter((u) => u.role === 'tenant').length,
+      properties: db.properties.length,
+      views: db.properties.reduce((s, p) => s + p.views, 0),
+      saved: db.saved.length,
+      chats: db.conversations.length,
+      unlocks: db.contactUnlocks.length,
+      coinSales: db.transactions.filter((t) => t.type === 'Purchase').reduce((s, t) => s + Math.max(0, t.coins), 0),
+      revenue: db.payments.filter((p) => p.status === 'Success').reduce((s, p) => s + p.amount, 0),
+      reports: db.reports.length,
+      series: db.analyticsSeries,
+    }
+  },
+
+  async settings() {
+    await delay()
+    return clone(getDb().settings)
+  },
+
+  async saveSettings(payload, adminId) {
+    await delay()
+    const db = getDb()
+    db.settings = { ...db.settings, ...payload }
+    log(db, adminId, 'Updated settings', 'platform')
+    saveDb(db)
+    return clone(db.settings)
+  },
+
+  async logs() {
+    await delay()
+    return clone(getDb().adminLogs)
+  },
+
+  async sendNotification({ title, body, audience }, adminId) {
+    await delay()
+    const db = getDb()
+    const targets = db.users.filter((u) => {
+      if (audience === 'all') return true
+      return u.role === audience
+    })
+    targets.forEach((u) => {
+      db.notifications.unshift({
+        id: nextId('n'),
+        userId: u.id,
+        title,
+        body,
+        read: false,
+        createdAt: new Date().toISOString(),
+        link: '/',
+      })
+    })
+    log(db, adminId, 'Sent notification', audience)
+    saveDb(db)
+    return { sent: targets.length }
+  },
+}
+
+function log(db, adminId, action, target) {
+  db.adminLogs.unshift({
+    id: nextId('log'),
+    adminId,
+    action,
+    target,
+    date: new Date().toISOString(),
+    ip: '103.4.x.x',
+    device: 'Admin console',
+    status: 'Success',
+  })
+}
