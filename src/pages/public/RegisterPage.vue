@@ -1,14 +1,22 @@
 <script setup>
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/authStore'
 import { useUiStore } from '../../stores/uiStore'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const ui = useUiStore()
 const loading = ref(false)
-const form = reactive({ name: '', email: '', phone: '', role: 'tenant', password: '', confirmPassword: '' })
+const form = reactive({
+  name: '',
+  email: '',
+  phone: '',
+  role: route.query.role === 'landlord' ? 'landlord' : 'tenant',
+  password: '',
+  confirmPassword: '',
+})
 const error = ref('')
 
 async function submit() {

@@ -54,7 +54,11 @@ onBeforeUnmount(() => {
         tabindex="-1"
       >
         <div class="content-container">
-          <router-view />
+          <router-view v-slot="{ Component }">
+            <transition name="page" mode="out-in">
+              <component :is="Component" :key="$route.path" />
+            </transition>
+          </router-view>
         </div>
       </main>
     </div>

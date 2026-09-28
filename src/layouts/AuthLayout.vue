@@ -13,7 +13,11 @@ import AppHeader from '../components/common/AppHeader.vue'
       tabindex="-1"
     >
       <div class="auth-container">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="page" mode="out-in">
+            <component :is="Component" :key="$route.path" />
+          </transition>
+        </router-view>
       </div>
     </main>
   </div>
