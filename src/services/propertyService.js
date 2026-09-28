@@ -154,6 +154,10 @@ export const propertyService = {
   },
 
   async isSaved(userId, propertyId) {
+    if (!apiConfig.useMock) {
+      const saved = await this.savedList(userId)
+      return saved.some((property) => property.id === propertyId)
+    }
     const db = getDb()
     return db.saved.some((s) => s.userId === userId && s.propertyId === propertyId)
   },

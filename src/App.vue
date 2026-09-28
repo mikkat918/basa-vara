@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from 'vue'
+import { watch } from 'vue'
 import AppToast from './components/common/AppToast.vue'
 import ConfirmDialog from './components/common/ConfirmDialog.vue'
 import { useNotificationStore } from './stores/notificationStore'
@@ -10,12 +10,21 @@ const auth = useAuthStore()
 const wallet = useWalletStore()
 const notifications = useNotificationStore()
 
-onMounted(() => {
-  if (auth.isAuthenticated) {
-    wallet.load()
-    notifications.load()
+watch(() => auth.user?.id, (userId) => {
+  if (!userId) {
+    wallet.coinBalance = 0
+    wallet.transactions = []
+    wallet.error = ''
+    notifications.items = []
+    return
   }
-})
+  // A new session can be created after the app mounts. Refresh account data
+  // on login and clear stale data before switching accounts.
+  wallet.coinBalance = 0
+  wallet.transactions = []
+  notifications.items = []
+  Promise.allSettled([wallet.load(), notifications.load()])
+}, { immediate: true })
 </script>
 
 <template>

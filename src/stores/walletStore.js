@@ -13,8 +13,14 @@ export const useWalletStore = defineStore('wallet', () => {
 
   async function load() {
     const auth = useAuthStore()
-    if (!auth.user) return
+    if (!auth.user) {
+      coinBalance.value = 0
+      transactions.value = []
+      error.value = ''
+      return
+    }
     loading.value = true
+    error.value = ''
     try {
       const [wallet, txs] = await Promise.all([
         walletService.getWallet(auth.user.id),
@@ -22,6 +28,9 @@ export const useWalletStore = defineStore('wallet', () => {
       ])
       coinBalance.value = wallet.coinBalance
       transactions.value = txs
+    } catch (err) {
+      error.value = err.message || 'Could not load wallet data.'
+      throw err
     } finally {
       loading.value = false
     }

@@ -1,17 +1,69 @@
+
 <script setup>
 import DashboardShell from './DashboardShell.vue'
 
+/**
+ * Tenant dashboard navigation.
+ *
+ * Route values and action names are kept unchanged
+ * so DashboardShell / AppSidebar can continue using
+ * the existing navigation contract.
+ */
 const items = [
-  { label: 'Dashboard', to: '/dashboard', exact: true },
-  { label: 'Find properties', to: '/properties' },
-  { label: 'Saved properties', to: '/dashboard/saved' },
-  { label: 'Messages', to: '/dashboard/messages' },
-  { label: 'Wallet', to: '/dashboard/wallet' },
-  { label: 'Transactions', to: '/dashboard/transactions' },
-  { label: 'Notifications', to: '/dashboard/notifications' },
-  { label: 'Profile', to: '/dashboard/profile' },
-  { label: 'Settings', to: '/dashboard/settings' },
-  { label: 'Log out', action: 'logout' },
+  // Overview
+  {
+    label: 'Dashboard',
+    to: '/dashboard',
+    exact: true,
+  },
+
+  // Property Discovery
+  {
+    label: 'Find properties',
+    to: '/properties',
+  },
+  {
+    label: 'Saved properties',
+    to: '/dashboard/saved',
+  },
+
+  // Communication
+  {
+    label: 'Messages',
+    to: '/dashboard/messages',
+  },
+
+  // Wallet & Payments
+  {
+    label: 'Wallet',
+    to: '/dashboard/wallet',
+  },
+  {
+    label: 'Transactions',
+    to: '/dashboard/transactions',
+  },
+
+  // Updates
+  {
+    label: 'Notifications',
+    to: '/dashboard/notifications',
+  },
+
+  // Account
+  {
+    label: 'Profile',
+    to: '/dashboard/profile',
+  },
+  {
+    label: 'Settings',
+    to: '/dashboard/settings',
+  },
+
+  // Session
+  {
+    label: 'Log out',
+    action: 'logout',
+  },
 ]
 </script>
 
