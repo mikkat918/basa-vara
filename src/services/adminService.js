@@ -43,6 +43,7 @@ export const adminService = {
   },
 
   async user(id) {
+    if (!apiConfig.useMock) return request(`/admin/users/${id}`)
     await delay()
     const db = getDb()
     const user = db.users.find((u) => u.id === id)
@@ -55,6 +56,7 @@ export const adminService = {
   },
 
   async setUserStatus(id, status) {
+    if (!apiConfig.useMock) return request(`/admin/users/${id}`, { method: 'PATCH', body: { status } })
     await delay()
     const db = getDb()
     const user = db.users.find((u) => u.id === id)
@@ -65,6 +67,7 @@ export const adminService = {
   },
 
   async updateUser(id, payload) {
+    if (!apiConfig.useMock) return request(`/admin/users/${id}`, { method: 'PATCH', body: payload })
     await delay()
     const db = getDb()
     const user = db.users.find((u) => u.id === id)
@@ -75,6 +78,7 @@ export const adminService = {
   },
 
   async deleteUser(id) {
+    if (!apiConfig.useMock) return request(`/admin/users/${id}`, { method: 'DELETE' })
     await delay()
     const db = getDb()
     db.users = db.users.filter((u) => u.id !== id)
@@ -83,6 +87,7 @@ export const adminService = {
   },
 
   async properties({ status, q } = {}) {
+    if (!apiConfig.useMock) return request(`/admin/properties${query({ status, q })}`)
     await delay()
     let list = getDb().properties
     if (status) list = list.filter((p) => p.status === status)
@@ -91,6 +96,7 @@ export const adminService = {
   },
 
   async approve(id, adminId) {
+    if (!apiConfig.useMock) return request(`/admin/properties/${id}/moderation`, { method: 'PATCH', body: { action: 'approve' } })
     await delay()
     const db = getDb()
     const p = db.properties.find((x) => x.id === id)
@@ -104,6 +110,7 @@ export const adminService = {
   },
 
   async reject(id, adminId, reason) {
+    if (!apiConfig.useMock) return request(`/admin/properties/${id}/moderation`, { method: 'PATCH', body: { action: 'reject', reason } })
     await delay()
     if (!reason) throw new ApiError(422, 'A rejection reason is required')
     const db = getDb()
@@ -117,6 +124,7 @@ export const adminService = {
   },
 
   async suspendProperty(id, adminId) {
+    if (!apiConfig.useMock) return request(`/admin/properties/${id}/moderation`, { method: 'PATCH', body: { action: 'suspend' } })
     await delay()
     const db = getDb()
     const p = db.properties.find((x) => x.id === id)
@@ -128,11 +136,13 @@ export const adminService = {
   },
 
   async reports() {
+    if (!apiConfig.useMock) return request('/admin/reports')
     await delay()
     return clone(getDb().reports)
   },
 
   async updateReport(id, adminId, action, extra = {}) {
+    if (!apiConfig.useMock) return request(`/admin/reports/${id}`, { method: 'PATCH', body: { action, ...extra } })
     await delay()
     const db = getDb()
     const r = db.reports.find((x) => x.id === id)
@@ -157,11 +167,13 @@ export const adminService = {
   },
 
   async payments() {
+    if (!apiConfig.useMock) return request('/admin/payments')
     await delay()
     return clone(getDb().payments)
   },
 
   async refund(paymentId, adminId) {
+    if (!apiConfig.useMock) return request(`/admin/payments/${paymentId}/refund`, { method: 'POST' })
     await delay()
     const db = getDb()
     const payment = db.payments.find((p) => p.id === paymentId)
@@ -188,11 +200,13 @@ export const adminService = {
   },
 
   async coinTransactions() {
+    if (!apiConfig.useMock) return request('/admin/coin-transactions')
     await delay()
     return clone(getDb().transactions)
   },
 
   async analytics() {
+    if (!apiConfig.useMock) return request('/admin/analytics')
     await delay()
     const db = getDb()
     return {
@@ -212,11 +226,13 @@ export const adminService = {
   },
 
   async settings() {
+    if (!apiConfig.useMock) return request('/admin/settings')
     await delay()
     return clone(getDb().settings)
   },
 
   async saveSettings(payload, adminId) {
+    if (!apiConfig.useMock) return request('/admin/settings', { method: 'PUT', body: payload })
     await delay()
     const db = getDb()
     db.settings = { ...db.settings, ...payload }
@@ -226,11 +242,13 @@ export const adminService = {
   },
 
   async logs() {
+    if (!apiConfig.useMock) return request('/admin/logs')
     await delay()
     return clone(getDb().adminLogs)
   },
 
   async sendNotification({ title, body, audience }, adminId) {
+    if (!apiConfig.useMock) return request('/admin/notifications', { method: 'POST', body: { title, body, audience } })
     await delay()
     const db = getDb()
     const targets = db.users.filter((u) => {
@@ -265,4 +283,9 @@ function log(db, adminId, action, target) {
     device: 'Admin console',
     status: 'Success',
   })
+}
+
+function query(params = {}) {
+  const entries = Object.entries(params).filter(([, value]) => value !== '' && value != null)
+  return entries.length ? `?${new URLSearchParams(entries).toString()}` : ''
 }

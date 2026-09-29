@@ -21,6 +21,7 @@ export const notificationService = {
   },
 
   async markAll(userId) {
+    if (!apiConfig.useMock) return request('/notifications/read-all', { method: 'POST' })
     await delay(80)
     const db = getDb()
     db.notifications.filter((n) => n.userId === userId).forEach((n) => {

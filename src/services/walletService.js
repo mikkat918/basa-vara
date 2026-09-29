@@ -84,6 +84,7 @@ export const walletService = {
   },
 
   async getUnlockedContact(userId, propertyId) {
+    if (!apiConfig.useMock) return request(`/contacts/unlocked/${propertyId}`)
     await delay(60)
     const db = getDb()
     const unlocked = db.contactUnlocks.some((u) => u.userId === userId && u.propertyId === propertyId)
@@ -94,6 +95,10 @@ export const walletService = {
   },
 
   async unlockedCount(userId) {
+    if (!apiConfig.useMock) {
+      const result = await request('/wallet/unlocks')
+      return Array.isArray(result) ? result.length : Number(result?.total || 0)
+    }
     return getDb().contactUnlocks.filter((u) => u.userId === userId).length
   },
 }

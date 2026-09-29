@@ -49,6 +49,7 @@ export const paymentService = {
   },
 
   async cancelPayment(paymentId, userId) {
+    if (!apiConfig.useMock) return request(`/payments/${paymentId}/cancel`, { method: 'POST' })
     await delay()
     const db = getDb()
     const payment = db.payments.find((p) => p.id === paymentId && p.userId === userId)

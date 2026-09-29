@@ -101,6 +101,7 @@ export const chatService = {
   },
 
   async block(conversationId, userId) {
+    if (!apiConfig.useMock) return request(`/chat/conversations/${conversationId}/block`, { method: 'POST' })
     await delay()
     const db = getDb()
     const c = db.conversations.find((x) => x.id === conversationId)
@@ -115,6 +116,7 @@ export const chatService = {
   },
 
   async report(conversationId, userId, details) {
+    if (!apiConfig.useMock) return request(`/chat/conversations/${conversationId}/reports`, { method: 'POST', body: { details } })
     await delay()
     const db = getDb()
     const c = db.conversations.find((x) => x.id === conversationId)
