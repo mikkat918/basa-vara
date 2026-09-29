@@ -163,6 +163,7 @@ export const propertyService = {
   },
 
   async recentlyViewed(userId) {
+    if (!apiConfig.useMock) return request('/properties/recently-viewed')
     await delay()
     const db = getDb()
     const ids = db.recentlyViewed.filter((v) => v.userId === userId).map((v) => v.propertyId)
@@ -203,6 +204,7 @@ export const propertyService = {
   },
 
   async duplicate(id, landlordId) {
+    if (!apiConfig.useMock) return request(`/properties/${id}/duplicate`, { method: 'POST' })
     await delay()
     const db = getDb()
     const property = db.properties.find((p) => p.id === id && p.landlordId === landlordId)
@@ -222,6 +224,7 @@ export const propertyService = {
   },
 
   async setStatus(id, landlordId, status) {
+    if (!apiConfig.useMock) return request(`/properties/${id}/status`, { method: 'PATCH', body: { status } })
     await delay()
     const db = getDb()
     const property = db.properties.find((p) => p.id === id && p.landlordId === landlordId)
@@ -232,6 +235,7 @@ export const propertyService = {
   },
 
   async remove(id, landlordId) {
+    if (!apiConfig.useMock) return request(`/properties/${id}`, { method: 'DELETE' })
     await delay()
     const db = getDb()
     db.properties = db.properties.filter((p) => !(p.id === id && p.landlordId === landlordId))
@@ -240,6 +244,7 @@ export const propertyService = {
   },
 
   async analytics(id, landlordId) {
+    if (!apiConfig.useMock) return request(`/properties/${id}/analytics`)
     await delay()
     const db = getDb()
     const property = db.properties.find((p) => p.id === id && p.landlordId === landlordId)

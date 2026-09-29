@@ -36,6 +36,7 @@ export const userService = {
   },
 
   async blocked(userId) {
+    if (!apiConfig.useMock) return request('/me/blocked')
     await delay()
     const db = getDb()
     const ids = db.blockedUsers.filter((b) => b.userId === userId).map((b) => b.blockedId)
@@ -43,6 +44,7 @@ export const userService = {
   },
 
   async unblock(userId, blockedId) {
+    if (!apiConfig.useMock) return request(`/me/blocked/${blockedId}`, { method: 'DELETE' })
     await delay()
     const db = getDb()
     db.blockedUsers = db.blockedUsers.filter((b) => !(b.userId === userId && b.blockedId === blockedId))
